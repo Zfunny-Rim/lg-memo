@@ -52,6 +52,21 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		});
 		return decrypted.toString(CryptoJS.enc.Utf8);
 	}
+	
+	//fetch
+	function safeFetch(url) {
+        return fetch(url)
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`); // 상태 코드가 오류인 경우 처리
+                }
+                return response;
+            })
+            .catch(error => {
+                console.error("There was a problem retrieving the file."); // 사용자에게 피드백
+                throw error;  // 상위에서 처리할 수 있도록 오류를 다시 던짐
+            });
+    }
 
 	// 확장 정의
 	return {
@@ -101,7 +116,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 									label: "Button CSS",
 									type: "string",
 									expression: "optional",
-									defaultValue: "width:100%;height:100%;background-color: none;color: #fd312e;border: 2px solid #fd312e;border-radius: 4px;cursor: pointer;font-size: 15px;"
+									defaultValue: "width: 100%;height: 100%;cursor: pointer;color: #e34975;font-weight: bold;background-color: #fefafd;border: 0.135px solid #e34975;padding: 6px 14px;border-radius: 4px;font-size: 12px;"
 								},
 								serverAddress: {
 									ref: "serverAddress",
@@ -130,7 +145,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		},
 		paint: async function ($element, layout) {
 			const ownId = this.options.id;
-			const customCss = layout.customCss || "...";
+			const customCss = layout.customCss || "width: 100%;height: 100%;cursor: pointer;color: #e34975;font-weight: bold;background-color: #fefafd;border: 0.135px solid #e34975;padding: 6px 14px;border-radius: 4px;font-size: 12px;";
 			const btnText = layout.buttonText || "LG";
 			const $button = $("<button>", {
 				id: ownId + "-btn",
@@ -195,6 +210,8 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 					
 					const decrypted = decryptAES(encrypted, vAESKey);
 					console.log("Decrypted: " + decrypted);
+					
+					alert(apiUri);
 
 				} catch (err) {
 					console.error("Variable fetch or encryption failed:", err);
