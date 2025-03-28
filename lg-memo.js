@@ -53,20 +53,13 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		return decrypted.toString(CryptoJS.enc.Utf8);
 	}
 	
-	//fetch
-	function safeFetch(url) {
-        return fetch(url)
-            .then(response => {
-                if (!response.ok) {
-                    throw new Error(`HTTP error! status: ${response.status}`); // 상태 코드가 오류인 경우 처리
-                }
-                return response;
-            })
-            .catch(error => {
-                console.error("There was a problem retrieving the file."); // 사용자에게 피드백
-                throw error;  // 상위에서 처리할 수 있도록 오류를 다시 던짐
-            });
-    }
+	// URL-SAFE Base64
+	function toUrlSafeBase64(base64){
+		return base64
+			.replace(/\+/g, '-')   // '+' → '-'
+			.replace(/\//g, '_')   // '/' → '_'
+			.replace(/=+$/, '');   // '=' 제거
+	}
 
 	// 확장 정의
 	return {
@@ -203,7 +196,8 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 					console.log("endpoint : " + endpoint);
 					const encrypted = encryptAES(vSearch, vAESKey);
 					console.log("Encrypted: " + encrypted);
-					const encoded = encodeURIComponent(encrypted);
+					//const encoded = encodeURIComponent(encrypted);
+					const encoded = toUrlSafeBase64(encrypted);
 					console.log("Encoded: " + encoded);
 					const apiUri = layout.serverAddress + endpoint + encoded;
 					console.log("** API URI: "+apiUri+" ** ");
@@ -211,7 +205,32 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 					const decrypted = decryptAES(encrypted, vAESKey);
 					console.log("Decrypted: " + decrypted);
 					
-					alert(apiUri);
+					//alert(apiUri);
+					const popupWidth = 1280;
+					const popupHeight = 860;
+
+					const left = window.screenX + (window.outerWidth - popupWidth) / 2;
+					const top = window.screenY + (window.outerHeight - popupHeight) / 2;
+
+					const features = [
+						`width=${popupWidth}`,
+						`height=${popupHeight}`,
+						`left=${left}`,
+						`top=${top}`,
+						"toolbar=no",
+						"menubar=no",
+						"scrollbars=yes",
+						"resizable=yes",
+						"status=no"
+					].join(",");
+					window.open(apiUri, "_blank", features);
+
+					//To-do List...
+					// - json 구조 검증
+					// - 필수 데이터 검증
+					// - 각 option 당 windows 사이즈 개별 지정
+					// - vAESKey, vSearch 변수 에러 처리
+					// - 테스트
 
 				} catch (err) {
 					console.error("Variable fetch or encryption failed:", err);
