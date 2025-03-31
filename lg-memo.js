@@ -74,7 +74,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		// 2. actionType별 요구 구조 정의
 		const schema = {
 			issue_note: ["basisYm", "judgeBasisSn", "surKey", "userId"],
-			reliability: ["basisYm", "judgeBasisSn", "surKey", "userId"],
+			reliability: ["basisYm", "closeDivisionSeqKcd", "userId"],
 			qcost_create: ["reportNm", "yyyyMm", "company", "gbu1", "gbu2", "gbu3", "division", "region", "prodAff", "userId"],
 			qcost_update: ["surKey", "userId"]
 		};
@@ -203,7 +203,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 									ref: "buttonText",
 									label: "Button Text",
 									type: "string",
-									defaultValue: "Button"
+									defaultValue: ""
 								},
 								customCss: {
 									ref: "customCss",
@@ -240,7 +240,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		paint: async function ($element, layout) {
 			const ownId = this.options.id;
 			const customCss = layout.customCss || "width: 100%;height: 100%;cursor: pointer;color: #e34975;font-weight: bold;background-color: #fefafd;border: 0.135px solid #e34975;padding: 6px 14px;border-radius: 4px;font-size: 12px;";
-			const btnText = layout.buttonText || "LG";
+			const btnText = layout.buttonText || layout.actionType;
 			const $button = $("<button>", {
 				id: ownId + "-btn",
 				text: btnText,
