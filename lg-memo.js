@@ -84,7 +84,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		if (!requiredKeys) {
 			return {
 				valid: false,
-				reason: `Unknwon actionType: ${actionType}`
+				reason: `Unknown actionType: ${actionType}`
 			};
 		}
 		
@@ -98,7 +98,9 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 				}
 			}
 		}else{
-			const missingKeys = requiredKeys.filter(key => !(key in parsed));
+			const missingKeys = requiredKeys.filter(
+				key => !parsed[key] || parsed[key].toString().trim() === ""
+			);
 			if (missingKeys.length > 0) {
 				return {
 					valid: false,
@@ -110,12 +112,12 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		// 모두 통과
 		return {
 			valid: true,
-			parsed // 필요시 파싱된 객체 반환
+			parsed 
 		};
 	}
 	
 	function validateQCostCreate(vSearchObj) {
-		const requiredAlways = ["reportNm", "yyyyMm", "userId"];
+		const requiredAlways = ["reportNm", "yyyyMm", "userId", "prodAff"];
 		const orgHierarchy = ["company", "gbu1", "gbu2", "gbu3", "division"];
 		const regionHierarchy = ["region", "prodAff"];
 
