@@ -22,7 +22,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 				});
 
 			}).catch((err) => {
-				reject(new Error(`getByName() failed: ${err.message}`));
+				reject(new Error(`Variable not found : ${name}`));
 			});
 		});
 		
@@ -31,6 +31,10 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 
 	// 암호화
 	function encryptAES(text, key16) {
+		if (typeof key16 !== "string" || key16.length < 16) {
+			throw new Error("AES key must be a string with at least 16 characters.");
+		}
+		
 		const key = CryptoJS.enc.Utf8.parse(key16);
 		const iv = CryptoJS.enc.Utf8.parse(key16.substring(0, 16));
 		const encrypted = CryptoJS.AES.encrypt(text, key, {
@@ -52,6 +56,101 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		});
 		return decrypted.toString(CryptoJS.enc.Utf8);
 	}
+	
+	//json 구조 검증
+	function validateVSearch(vSearch, actionType) {
+		let parsed;
+
+		// 1. JSON 파싱 확인
+		try {
+			parsed = JSON.parse(vSearch);
+		} catch (e) {
+			return {
+				valid: false,
+				reason: "The value of vSearch is not a valid JSON format."
+			};
+		}
+
+		// 2. actionType별 요구 구조 정의
+		const schema = {
+			issue_note: ["basisYm", "judgeBasisSn", "surKey", "userId"],
+			reliability: ["basisYm", "judgeBasisSn", "surKey", "userId"],
+			qcost_create: ["reportNm", "yyyyMm", "company", "gbu1", "gbu2", "gbu3", "division", "region", "prodAff", "userId"],
+			qcost_update: ["surKey", "userId"]
+		};
+
+		const requiredKeys = schema[actionType];
+
+		if (!requiredKeys) {
+			return {
+				valid: false,
+				reason: `Unknwon actionType: ${actionType}`
+			};
+		}
+		
+		 // 3. 필수 필드 존재 확인
+		if(actionType === "qcost_create"){
+			const detailCheck =  validateQCostCreate(parsed);
+			if (!detailCheck.valid) {
+				return{
+					valid: false,
+					reason: detailCheck.reason
+				}
+			}
+		}else{
+			const missingKeys = requiredKeys.filter(key => !(key in parsed));
+			if (missingKeys.length > 0) {
+				return {
+					valid: false,
+					reason: `Missing required fields: ${missingKeys.join(", ")}`
+				};
+			}
+		}
+
+		// 모두 통과
+		return {
+			valid: true,
+			parsed // 필요시 파싱된 객체 반환
+		};
+	}
+	
+	function validateQCostCreate(vSearchObj) {
+		const requiredAlways = ["reportNm", "yyyyMm", "userId"];
+		const orgHierarchy = ["company", "gbu1", "gbu2", "gbu3", "division"];
+		const regionHierarchy = ["region", "prodAff"];
+
+		const missing = [];
+
+		// 1. 고정 필드 검증
+		requiredAlways.forEach(key => {
+			if (!vSearchObj[key]) missing.push(key);
+		});
+
+		// 2. 조직 계층 검증 (하위가 있으면 상위가 있어야 함)
+		for (let i = orgHierarchy.length - 1; i > 0; i--) {
+			const current = orgHierarchy[i];
+			const parent = orgHierarchy[i - 1];
+
+			if (vSearchObj[current] && !vSearchObj[parent]) {
+				missing.push(parent);
+			}
+		}
+
+		// 3. 지역 계층 검증
+		if (vSearchObj["prodAff"] && !vSearchObj["region"]) {
+			missing.push("region");
+		}
+
+		if (missing.length > 0) {
+			return {
+				valid: false,
+				reason: `Missing required fields: ${[...new Set(missing)].join(", ")}`
+			};
+		}
+
+		return { valid: true };
+	}
+
 	
 	// URL-SAFE Base64
 	function toUrlSafeBase64(base64){
@@ -168,14 +267,21 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 				const app = qlik.currApp();
 				const mode = qlik.navigation.getMode();
 				if (mode === "edit") return;
-
+				let vAESKey;
+				let vSearch; 
+				
 				try {
-					const [vAESKey, vSearch] = await Promise.all([
+					[vAESKey, vSearch] = await Promise.all([
 						getVariableContent(layout.vAESKeyName),
 						getVariableContent(layout.vSearchVarName)
 					]);
+				}catch(err){
+					console.error(err);
+					alert(err);
+					return;
+				}
 					
-					
+				try{	
 					console.log("server Address : " + layout.serverAddress);
 					console.log("actionType : " + layout.actionType);
 					var endpoint = "";
@@ -194,6 +300,14 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 							break;
 					}
 					console.log("endpoint : " + endpoint);
+					
+					const validateResult = validateVSearch(vSearch, layout.actionType);
+					if(!validateResult.valid){
+						alert(validateResult.reason);
+						return;
+					}
+					
+					
 					const encrypted = encryptAES(vSearch, vAESKey);
 					console.log("Encrypted: " + encrypted);
 					//const encoded = encodeURIComponent(encrypted);
@@ -206,8 +320,8 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 					console.log("Decrypted: " + decrypted);
 					
 					//alert(apiUri);
-					const popupWidth = 1280;
-					const popupHeight = 860;
+					const popupWidth = 1600;
+					const popupHeight = 1200;
 
 					const left = window.screenX + (window.outerWidth - popupWidth) / 2;
 					const top = window.screenY + (window.outerHeight - popupHeight) / 2;
@@ -225,15 +339,9 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 					].join(",");
 					window.open(apiUri, "_blank", features);
 
-					//To-do List...
-					// - json 구조 검증
-					// - 필수 데이터 검증
-					// - 각 option 당 windows 사이즈 개별 지정
-					// - vAESKey, vSearch 변수 에러 처리
-					// - 테스트
-
 				} catch (err) {
-					console.error("Variable fetch or encryption failed:", err);
+					alert(err);
+					console.error("encryption failed:", err);
 				}
 			});
 
