@@ -2,7 +2,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 	// 유틸 함수: Qlik 변수 가져오기
 	function getVariableContent(name) {
 		const app = qlik.currApp();
-		console.log(name);
+		//console.log(name);
 		const promise = new Promise((resolve, reject) => {
 			app.variable.getByName(name).then((variableModel) => {
 				if (!variableModel || !variableModel.id) {
@@ -11,7 +11,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 				}
 
 				variableModel.getLayout().then((layout) => {
-					console.log("layout :", layout);
+					//console.log("layout :", layout);
 					if (layout?.qText != null){
 						resolve(layout.qText);
 					} else {
@@ -172,7 +172,6 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 
 
 		const isOrGroupMissing = config.orGroup.some(key => missingKeys.includes(key));
-		//const isRequiredGroupMissing = config.requiredGroup.some(key => missingKeys.includes(key));
 		const missingRequiredFields = config.requiredGroup.filter(key => missingKeys.includes(key));
 
 
@@ -249,9 +248,9 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		definition: {
 			type: "items",
 			component: "accordion",
-			items: {
-				appearance: {
-					label: "Options",
+			items: {  
+				styleSettings: {
+					label: "Style Setting",
 					type: "items",
 					items: {
 						actionType: {
@@ -266,44 +265,56 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 								{ value: "qcost_update",     label: "Update Quality Cost" }
 							],
 							defaultValue: "issue_note"
-						},       
-						actionSettings: {
-							label: "Custom Setting",
-							type: "items",
-							items: {
-								buttonText: {
-									ref: "buttonText",
-									label: "Button Text",
-									type: "string",
-									defaultValue: ""
-								},
-								customCss: {
-									ref: "customCss",
-									label: "Button CSS",
-									type: "string",
-									expression: "optional",
-									defaultValue: "width: 100%;height: 100%;cursor: pointer;color: #e34975;font-weight: bold;background-color: #fefafd;border: 0.135px solid #e34975;padding: 6px 14px;border-radius: 4px;font-size: 12px;"
-								},
-								serverAddress: {
-									ref: "serverAddress",
-									label: "Server Address",
-									type: "string",
-									expression: "optional",
-									defaultValue: "https://cqisdev.lge.com"  
-								},
-								vAESKeyName: {
-									ref: "vAESKeyName",
-									label: "vAESKey Variable Name",
-									type: "string",
-									defaultValue: "vAESKey"
-								},
-								vSearchVarName: {
-									ref: "vSearchVarName",
-									label: "vSearch Variable Name",
-									type: "string",
-									defaultValue: "vSearch"
-								}
-							}
+						},
+						buttonText: {
+							ref: "buttonText",
+							label: "Button Text",
+							type: "string",
+							defaultValue: ""
+						},
+						customCss: {
+							ref: "customCss",
+							label: "Button CSS",
+							type: "string",
+							expression: "optional",
+							defaultValue: "width: 100%;height: 100%;cursor: pointer;color: #e34975;font-weight: bold;background-color: #fefafd;border: 0.135px solid #e34975;padding: 6px 14px;border-radius: 4px;font-size: 12px;"
+						},
+						popWidth: {
+							ref: "popWidth",
+							label: "Open Window Size (width)",
+							type: "number",
+							defaultValue: 1600
+						},
+						popHeight: {
+							ref: "popHeight",
+							label: "Open Window Size (hegiht)",
+							type: "number",
+							defaultValue: 1200
+						}
+					}
+				},
+				actionSettings: {
+					label: "Extension Setting",
+					type: "items",
+					items: {
+						serverAddress: {
+							ref: "serverAddress",
+							label: "Server Address",
+							type: "string",
+							expression: "optional",
+							defaultValue: "https://cqisdev.lge.com"  
+						},
+						vAESKeyName: {
+							ref: "vAESKeyName",
+							label: "vAESKey Variable Name",
+							type: "string",
+							defaultValue: "vAESKey"
+						},
+						vSearchVarName: {
+							ref: "vSearchVarName",
+							label: "vSearch Variable Name",
+							type: "string",
+							defaultValue: "vSearch"
 						}
 					}
 				}
@@ -337,7 +348,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 			$("<style>", { id: ownId }).html(style).appendTo("head");
 
 			// 클릭 이벤트
-			$button.on('click', async function () {
+			$button.off('click').on('click', async function () {
 				const app = qlik.currApp();
 				const mode = qlik.navigation.getMode();
 				if (mode === "edit") return;
@@ -356,25 +367,16 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 				}
 					
 				try{	
-					console.log("server Address : " + layout.serverAddress);
-					console.log("actionType : " + layout.actionType);
-					var endpoint = "";
-					switch(layout.actionType){
-						case "issue_note":
-							endpoint = "/qlik/issue/detail/?search="
-							break;
-						case "reliability":
-							endpoint = "/qlik/reliability/detail/?search="
-							break;
-						case "qcost_create":
-							endpoint = "/qlik/memo/create?search="
-							break;
-						case "qcost_update":
-							endpoint = "/qlik/memo/modify?search="
-							break;
-					}
-					console.log("endpoint : " + endpoint);
-					
+					//console.log("server Address : " + layout.serverAddress);
+					//console.log("actionType : " + layout.actionType);
+					const endpointMap = {
+						issue_note: "/qlik/issue/detail/?search=",
+						reliability: "/qlik/reliability/detail/?search=",
+						qcost_create: "/qlik/memo/create?search=",
+						qcost_update: "/qlik/memo/modify?search="
+					};
+					const endpoint = endpointMap[layout.actionType];
+					//console.log("endpoint : " + endpoint);
 					const validateResult = validateVSearch(vSearch, layout.actionType);
 					if(!validateResult.valid){
 						alert(validateResult.reason);
@@ -383,19 +385,19 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 					
 					
 					const encrypted = encryptAES(vSearch, vAESKey);
-					console.log("Encrypted: " + encrypted);
+					//console.log("Encrypted: " + encrypted);
 					//const encoded = encodeURIComponent(encrypted);
 					const encoded = toUrlSafeBase64(encrypted);
-					console.log("Encoded: " + encoded);
+					//console.log("Encoded: " + encoded);
 					const apiUri = layout.serverAddress + endpoint + encoded;
-					console.log("** API URI: "+apiUri+" ** ");
+					//console.log("** API URI: "+apiUri+" ** ");
 					
 					const decrypted = decryptAES(encrypted, vAESKey);
-					console.log("Decrypted: " + decrypted);
+					//console.log("Decrypted: " + decrypted);
 					
 					//alert(apiUri);
-					const popupWidth = 1600;
-					const popupHeight = 1200;
+					const popupWidth = layout.popWidth;
+					const popupHeight = layout.popHeight;
 
 					const left = window.screenX + (window.outerWidth - popupWidth) / 2;
 					const top = window.screenY + (window.outerHeight - popupHeight) / 2;
