@@ -104,7 +104,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 			if (missingKeys.length > 0) {
 				return {
 					valid: false,
-					reason: `Missing required fields: ${missingKeys.join(", ")}`
+					reason: getMissingFieldErrorMessage(actionType, missingKeys)
 				};
 			}
 		}
@@ -115,6 +115,78 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 			parsed 
 		};
 	}
+
+	function getMissingFieldErrorMessage(actionType, missingKeys) {
+		const systemErrorMessage = "A required system field is missing.";
+		const noSelectionMessage = "Please select one record.";
+		const prodAffMissingMessage = "Please select a Prod Affiliate.";
+   		const yearMonthMissingMessage = "Please select a YearMonth.";
+		const formulaErrorMessage = "Field selection formula may be invalid";
+	
+		const rules = {
+			issue_note: {
+				orGroup: ["judgeBasisSn", "surKey"],
+				requiredGroup: ["basisYm", "userId"]
+			},
+			reliability: {
+				orGroup: ["closeDivisionSeqKcd"],
+				requiredGroup: ["basisYm", "userId"]
+			},
+			qcost_update: {
+				orGroup: ["surKey"],
+				requiredGroup: ["userId"]
+			},
+			qcost_create: {
+				userRequired: ["reportNm", "userId"],
+				promptRequired: ["prodAff", "yyyyMm"],
+				formulaCheck: ["company", "gbu1", "gbu2", "gbu3", "division", "region"]
+			}
+		};
+	
+		const config = rules[actionType];
+		
+		if (actionType === "qcost_create") {
+			const userMissing = config.userRequired.filter(key => missingKeys.includes(key));
+			const promptMissing = config.promptRequired.filter(key => missingKeys.includes(key));
+			const formulaMissing = config.formulaCheck.filter(key => missingKeys.includes(key));
+	
+			if (userMissing.length > 0) {
+				return `${systemErrorMessage}: ${userMissing.join(", ")}`;
+			}
+	
+			if (promptMissing.includes("prodAff")) {
+				return prodAffMissingMessage;
+			}
+	
+			if (promptMissing.includes("yyyyMm")) {
+				return yearMonthMissingMessage;
+			}
+	
+			if (formulaMissing.length > 0) {
+				return `${formulaErrorMessage}: ${formulaMissing.join(", ")}`;
+			}
+	
+			// 이 외는 일반 누락 필드 메시지
+			return `Missing required fields: ${missingKeys.join(", ")}`;
+		}
+
+
+		const isOrGroupMissing = config.orGroup.some(key => missingKeys.includes(key));
+		//const isRequiredGroupMissing = config.requiredGroup.some(key => missingKeys.includes(key));
+		const missingRequiredFields = config.requiredGroup.filter(key => missingKeys.includes(key));
+
+
+		if (missingRequiredFields.length > 0 ) {
+			return `${systemErrorMessage}: ${missingRequiredFields.join(", ")}`;
+		}
+	
+		if (isOrGroupMissing) {
+			return noSelectionMessage;
+		}
+	
+		return `Missing required fields: ${missingKeys.join(", ")}`;
+	}
+	
 	
 	function validateQCostCreate(vSearchObj) {
 		const requiredAlways = ["reportNm", "yyyyMm", "userId", "prodAff"];
@@ -146,7 +218,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		if (missing.length > 0) {
 			return {
 				valid: false,
-				reason: `Missing required fields: ${[...new Set(missing)].join(", ")}`
+				reason: getMissingFieldErrorMessage('qcost_create', missing)
 			};
 		}
 
