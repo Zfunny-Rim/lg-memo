@@ -58,7 +58,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 	}
 	
 	//json 구조 검증
-	function validateVSearch(vSearch, actionType) {
+	function validateVSearch(vSearch, actionType, reportNm) {
 		let parsed;
 
 		// 1. JSON 파싱 확인
@@ -90,7 +90,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		
 		 // 3. 필수 필드 존재 확인
 		if(actionType === "qcost_create"){
-			const detailCheck =  validateQCostCreate(parsed);
+			const detailCheck =  validateQCostCreate(parsed, reportNm);
 			if (!detailCheck.valid) {
 				return{
 					valid: false,
@@ -138,7 +138,7 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 			},
 			qcost_create: {
 				userRequired: ["reportNm", "userId"],
-				promptRequired: ["prodAff", "yyyyMm"],
+				promptRequired: ["yyyyMm", "prodAff"],
 				formulaCheck: ["company", "gbu1", "gbu2", "gbu3", "division", "region"]
 			}
 		};
@@ -187,10 +187,9 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 	}
 	
 	
-	function validateQCostCreate(vSearchObj) {
-		const requiredAlways = ["reportNm", "yyyyMm", "userId", "prodAff"];
+	function validateQCostCreate(vSearchObj, reportNm) {
+		const requiredAlways = ["userId", "yyyyMm"];
 		const orgHierarchy = ["company", "gbu1", "gbu2", "gbu3", "division"];
-		const regionHierarchy = ["region", "prodAff"];
 
 		const missing = [];
 
@@ -210,10 +209,16 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 		}
 
 		// 3. 지역 계층 검증
-		if (vSearchObj["prodAff"] && !vSearchObj["region"]) {
-			missing.push("region");
+		// MS - Audit일때만 검사한다...?
+		if(reportNm === "MS - Audit"){
+			if (!vSearchObj["prodAff"]){
+				missing.push("prodAff");
+			}
+			if (vSearchObj["prodAff"] && !vSearchObj["region"]) {
+				missing.push("region");
+			}
 		}
-
+		
 		if (missing.length > 0) {
 			return {
 				valid: false,
@@ -297,6 +302,12 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 					label: "Extension Setting",
 					type: "items",
 					items: {
+						reportName: {
+							ref: "reportNm",
+							label: "Report Name (QCost)",
+							type: "string",
+							defaultValue: "Global Report"
+						},
 						serverAddress: {
 							ref: "serverAddress",
 							label: "Server Address",
@@ -367,8 +378,6 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 				}
 					
 				try{	
-					//console.log("server Address : " + layout.serverAddress);
-					//console.log("actionType : " + layout.actionType);
 					const endpointMap = {
 						issue_note: "/qlik/issue/detail/?search=",
 						reliability: "/qlik/reliability/detail/?search=",
@@ -376,26 +385,32 @@ define(["jquery", "qlik", "./cryptoJs.min"], function ($, qlik, CryptoJS) {
 						qcost_update: "/qlik/memo/modify?search="
 					};
 					const endpoint = endpointMap[layout.actionType];
-					//console.log("endpoint : " + endpoint);
-					const validateResult = validateVSearch(vSearch, layout.actionType);
+
+					const validateResult = validateVSearch(vSearch, layout.actionType, layout.reportNm);
 					if(!validateResult.valid){
 						alert(validateResult.reason);
 						return;
 					}
 					
+					// actionType 이 qcost_create 인 경우, body의 reportNm을 layout.reportNm으로 고쳐야함.
+					if (layout.actionType === "qcost_create") {
+						const parsed = validateResult.parsed;
+					
+						// layout에서 reportNm 가져와 덮어쓰기
+						if(!layout.reportNm){
+							alert("Please enter the report name for QCost.");
+							return;
+						}
+						parsed.reportNm = layout.reportNm;
+						// 다시 JSON 문자열로 직렬화
+						vSearch = JSON.stringify(parsed);
+						console.log(vSearch)
+					}
 					
 					const encrypted = encryptAES(vSearch, vAESKey);
-					//console.log("Encrypted: " + encrypted);
-					//const encoded = encodeURIComponent(encrypted);
 					const encoded = toUrlSafeBase64(encrypted);
-					//console.log("Encoded: " + encoded);
 					const apiUri = layout.serverAddress + endpoint + encoded;
-					//console.log("** API URI: "+apiUri+" ** ");
 					
-					const decrypted = decryptAES(encrypted, vAESKey);
-					//console.log("Decrypted: " + decrypted);
-					
-					//alert(apiUri);
 					const popupWidth = layout.popWidth;
 					const popupHeight = layout.popHeight;
 
